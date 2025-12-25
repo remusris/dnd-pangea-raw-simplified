@@ -78,15 +78,22 @@ function App() {
   const updateActiveDropzoneFromPoint = useCallback(
     (clientX: number, clientY: number) => {
       let nextId: string | null = null
+      const expansion = 0.25
 
       for (const [id, node] of dropzoneRefs.current.entries()) {
         if (!node || id === activeDragId) continue
         const rect = node.getBoundingClientRect()
+        const marginX = rect.width * expansion * 0.5
+        const marginY = rect.height * expansion * 0.5
+        const left = rect.left - marginX
+        const right = rect.right + marginX
+        const top = rect.top - marginY
+        const bottom = rect.bottom + marginY
         if (
-          clientX >= rect.left &&
-          clientX <= rect.right &&
-          clientY >= rect.top &&
-          clientY <= rect.bottom
+          clientX >= left &&
+          clientX <= right &&
+          clientY >= top &&
+          clientY <= bottom
         ) {
           nextId = dropzoneIdForWaypoint(id)
           break
