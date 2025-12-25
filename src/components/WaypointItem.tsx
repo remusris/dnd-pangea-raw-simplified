@@ -1,5 +1,6 @@
 import { Draggable } from '@hello-pangea/dnd'
 import type { FC } from 'react'
+import { useDndContext } from './DndContext'
 
 export type Waypoint = {
   id: string
@@ -11,18 +12,13 @@ export type Waypoint = {
 interface WaypointItemProps {
   waypoint: Waypoint
   index: number
-  isDragging: boolean
-  activeDropzoneId: string | null
-  onDropzoneRef?: (id: string, node: HTMLDivElement | null) => void
 }
 
 export const WaypointItem: FC<WaypointItemProps> = ({
   waypoint,
   index,
-  isDragging,
-  activeDropzoneId,
-  onDropzoneRef,
 }) => {
+  const { isDragging, activeDropzoneId, setDropzoneRef } = useDndContext()
   const dropzoneId = `dropzone-${waypoint.id}`
   const isDropzoneActive = activeDropzoneId === dropzoneId
   const dropzoneVisibility = isDragging
@@ -35,7 +31,7 @@ export const WaypointItem: FC<WaypointItemProps> = ({
         <div
           ref={draggableProvided.innerRef}
           {...draggableProvided.draggableProps}
-          className="flex w-full flex-col gap-3"
+          className="flex w-full flex-col gap-0"
           style={draggableProvided.draggableProps.style}
         >
           <div
@@ -58,10 +54,10 @@ export const WaypointItem: FC<WaypointItemProps> = ({
               </span>
             </div>
           </div>
-          {waypoint.hasDropzone ? (
+          {(waypoint.hasDropzone) ? (
             <div
               id={dropzoneId}
-              ref={(node) => onDropzoneRef?.(waypoint.id, node)}
+              ref={(node) => setDropzoneRef(waypoint.id, node)}
               data-dropzone-id={dropzoneId}
               data-dropzone-owner={waypoint.id}
               className={`flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed px-[1.25rem] py-[0.9375rem] text-[0.6rem] uppercase tracking-[0.35em] transition ${dropzoneVisibility} ${
