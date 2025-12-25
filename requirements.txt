@@ -1,11 +1,10 @@
 This is the functionality we're looking for
 
-We need a vertical sortable list that accomplishes the following
+We need a vertical sortable list that has to item types
 
-When we start dragging, there should be a container next to each draggable card
+One item type has a nested dropzones
 
-When the card that is dragging has gone further in the x direction than the root container
+The other item type does not have a nested dropzones
 
-We then need to disable the drag-and-drop in the main list
+Basically, we should be able to drag and drop a nested item to the top-level list but also we be able to drag a top level item into a nested list
 
-We need an indicator when we've entered the dropzones to the right of the main sortable list
