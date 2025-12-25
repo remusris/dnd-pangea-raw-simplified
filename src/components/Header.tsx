@@ -15,11 +15,11 @@ export const Header: FC<HeaderProps> = ({
         Pangea drag lanes
       </p>
       <h1 className="text-3xl font-semibold text-slate-100 md:text-4xl">
-        Vertical sort with beneath-item dropzones
+        Vertical sort with mixed dropzones
       </h1>
       <p className="max-w-2xl text-sm text-slate-300 md:text-base">
-        Drag a waypoint to reorder the main list. Each waypoint reveals its own
-        dropzone directly beneath it while you drag.
+        Drag a waypoint to reorder the main list. Only select waypoints reveal
+        a dropzone beneath them while you drag.
       </p>
       <div className="flex flex-wrap items-center gap-3 text-[0.6rem] uppercase tracking-[0.3em]">
         <span

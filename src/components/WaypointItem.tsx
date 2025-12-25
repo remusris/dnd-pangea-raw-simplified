@@ -5,6 +5,7 @@ export type Waypoint = {
   id: string
   title: string
   note: string
+  hasDropzone: boolean
 }
 
 interface WaypointItemProps {
@@ -47,11 +48,12 @@ export const WaypointItem: FC<WaypointItemProps> = ({
               </span>
             </div>
           </div>
-          <Droppable
-            droppableId={`dropzone-${waypoint.id}`}
-            isDropDisabled={draggableSnapshot.isDragging}
-          >
-            {(dropProvided, dropSnapshot) => (
+          {waypoint.hasDropzone ? (
+            <Droppable
+              droppableId={`dropzone-${waypoint.id}`}
+              isDropDisabled={draggableSnapshot.isDragging}
+            >
+              {(dropProvided, dropSnapshot) => (
               <div
                 id={`dropzone-${waypoint.id}`}
                 ref={dropProvided.innerRef}
@@ -64,14 +66,15 @@ export const WaypointItem: FC<WaypointItemProps> = ({
                     : 'border-slate-700/80 bg-slate-900/60 text-slate-500'
                 }`}
               >
-                <span>Dropzone</span>
-                <span className="text-[0.5rem] uppercase tracking-[0.25em] text-slate-400">
-                  {`dropzone-${waypoint.id}`}
-                </span>
-                {dropProvided.placeholder}
-              </div>
-            )}
-          </Droppable>
+                  <span>Dropzone</span>
+                  <span className="text-[0.5rem] uppercase tracking-[0.25em] text-slate-400">
+                    {`dropzone-${waypoint.id}`}
+                  </span>
+                  {dropProvided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          ) : null}
         </div>
       )}
     </Draggable>
