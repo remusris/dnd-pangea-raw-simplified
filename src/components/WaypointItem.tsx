@@ -64,7 +64,7 @@ export const WaypointItem: FC<WaypointItemProps> = ({
               ref={(node) => onDropzoneRef?.(waypoint.id, node)}
               data-dropzone-id={dropzoneId}
               data-dropzone-owner={waypoint.id}
-              className={`flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed px-4 py-3 text-[0.6rem] uppercase tracking-[0.35em] transition ${dropzoneVisibility} ${
+              className={`flex h-24 w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed px-4 text-[0.6rem] uppercase tracking-[0.35em] transition ${dropzoneVisibility} ${
                 isDropzoneActive
                   ? 'border-cyan-300 bg-cyan-300/20 text-cyan-100 shadow-[0_0_25px_rgba(34,211,238,0.35)]'
                   : 'border-slate-700/80 bg-slate-900/60 text-slate-500'
