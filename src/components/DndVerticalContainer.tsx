@@ -35,16 +35,19 @@ function DndContent({ waypoints, setWaypoints }: { waypoints: Waypoint[]; setWay
     (clientX: number, clientY: number) => {
       let nextId: string | null = null
       const expansion = 0.25
+      const minHitHeight = 64
 
       for (const [id, node] of dropzoneRefs.current.entries()) {
         if (!node || id === activeDragId) continue
         const rect = node.getBoundingClientRect()
         const marginX = rect.width * expansion * 0.5
         const marginY = rect.height * expansion * 0.5
+        const extraY = Math.max(0, (minHitHeight - rect.height) * 0.5)
+        // Give thin dropzones a larger hit area so activation is reliable.
         const left = rect.left - marginX
         const right = rect.right + marginX
-        const top = rect.top - marginY
-        const bottom = rect.bottom + marginY
+        const top = rect.top - marginY - extraY
+        const bottom = rect.bottom + marginY + extraY
         if (
           clientX >= left &&
           clientX <= right &&

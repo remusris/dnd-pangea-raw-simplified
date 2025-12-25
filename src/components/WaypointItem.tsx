@@ -1,6 +1,7 @@
 import { Draggable } from '@hello-pangea/dnd'
 import type { FC } from 'react'
 import { useDndContext } from './DndContext'
+import { cn } from '../lib/utils'
 
 export type Waypoint = {
   id: string
@@ -21,9 +22,15 @@ export const WaypointItem: FC<WaypointItemProps> = ({
   const { isDragging, activeDropzoneId, setDropzoneRef } = useDndContext()
   const dropzoneId = `dropzone-${waypoint.id}`
   const isDropzoneActive = activeDropzoneId === dropzoneId
-  const dropzoneVisibility = isDragging
-    ? 'pointer-events-none opacity-100'
-    : 'pointer-events-none opacity-0'
+  const dropzoneClasses = cn(
+    'flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed text-[0.6rem] uppercase tracking-[0.35em] transition-all duration-200 ease-in-out overflow-hidden pointer-events-none',
+    isDragging ? 'opacity-100' : 'opacity-0',
+    isDragging
+      ? isDropzoneActive
+        ? 'h-16 my-2 px-[1.25rem] py-[0.9375rem] border-cyan-300 bg-cyan-300/20 text-cyan-100 shadow-[0_0_25px_rgba(34,211,238,0.35)]'
+        : 'h-2.5 my-1 px-0 py-0 border-slate-700/80 bg-slate-900/60 text-slate-500'
+      : 'h-0 my-0 px-0 py-0 border-0 bg-transparent',
+  )
 
   return (
     <Draggable draggableId={waypoint.id} index={index}>
@@ -60,19 +67,16 @@ export const WaypointItem: FC<WaypointItemProps> = ({
               ref={(node) => setDropzoneRef(waypoint.id, node)}
               data-dropzone-id={dropzoneId}
               data-dropzone-owner={waypoint.id}
-              onDrop={() => {
-                console.log('dropped')
-              }}
-              className={`flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed px-[1.25rem] py-[0.9375rem] text-[0.6rem] uppercase tracking-[0.35em] transition ${dropzoneVisibility} ${
-                isDropzoneActive
-                  ? 'border-cyan-300 bg-cyan-300/20 text-cyan-100 shadow-[0_0_25px_rgba(34,211,238,0.35)]'
-                  : 'border-slate-700/80 bg-slate-900/60 text-slate-500'
-              }`}
+              className={dropzoneClasses}
             >
-              <span>Dropzone</span>
-              <span className="text-[0.5rem] uppercase tracking-[0.25em] text-slate-400">
-                {dropzoneId}
-              </span>
+              {isDropzoneActive && (
+                <>
+                  <span>Dropzone</span>
+                  <span className="text-[0.5rem] uppercase tracking-[0.25em] text-slate-400">
+                    {dropzoneId}
+                  </span>
+                </>
+              )}
             </div>
           ) : null}
         </div>

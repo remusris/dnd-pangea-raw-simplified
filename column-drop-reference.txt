@@ -1,0 +1,726 @@
+import { Droppable, DroppableProvided, DroppableStateSnapshot } from '@hello-pangea/dnd';
+import { cn } from '../lib/utils';
+
+interface Props {
+  index: number;
+  isTaskDragging?: boolean;
+  orientation?: 'horizontal' | 'vertical';
+}
+
+export function NewColumnDropzone({ index, orientation = 'horizontal' }: Props) {
+  const isVertical = orientation === 'vertical';
+  
+  return (
+    <Droppable droppableId={`create-column-${index}`} type="TASK">
+      {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.droppableProps}
+          className={cn(
+            "flex-shrink-0 transition-all duration-200 ease-in-out flex items-center justify-center rounded-lg",
+            isVertical ? 'w-full' : 'h-full',
+            snapshot.isDraggingOver 
+              ? [
+                  isVertical ? 'h-32' : 'w-full',
+                  'bg-blue-100 border-2 border-dashed border-blue-300 opacity-100',
+                  isVertical ? 'my-2' : 'mx-4'
+                ]
+              : [
+                  isVertical ? 'h-2.5' : 'w-2.5',
+                  'bg-transparent opacity-100 hover:bg-gray-200',
+                  isVertical ? 'my-0' : 'mx-0'
+                ]
+          )}
+          style={{
+             minWidth: isVertical ? '320px' : undefined,
+             minHeight: isVertical ? undefined : '200px'
+          }}
+        >
+          {snapshot.isDraggingOver && (
+            <span className="text-blue-500 font-medium whitespace-nowrap">Create New Column</span>
+          )}
+          {/* We don't render placeholder here effectively because we don't want the task to take space inside this zone in the traditional way during drag, 
+              but react-beautiful-dnd requires it. */}
+          <div style={{ display: 'none' }}>{provided.placeholder}</div>
+        </div>
+      )}
+    </Droppable>
+  );
+}
+
+import {
+  Droppable,
+  DroppableProvided,
+  DroppableStateSnapshot,
+} from "@hello-pangea/dnd";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  index: number;
+  isTaskDragging?: boolean;
+  orientation?: "horizontal" | "vertical";
+}
+
+export function NonDynamicNewColumnDropzone({
+  index,
+  orientation = "horizontal",
+}: Props) {
+  const isVertical = orientation === "vertical";
+
+  return (
+    <Droppable droppableId={`create-column-${index}`} type="TASK">
+      {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.droppableProps}
+          className={cn(
+            "flex-shrink-0 transition-all ease-in-out duration-100 flex items-center justify-center rounded-lg",
+            isVertical ? "w-full" : "h-full",
+            snapshot.isDraggingOver
+              ? "bg-blue-100 border-2 border-dashed border-blue-300 opacity-100"
+              : "bg-transparent opacity-100 hover:bg-gray-200",
+            isVertical
+              ? snapshot.isDraggingOver ? "h-20 my-2" : "h-1.5 my-1"
+              : snapshot.isDraggingOver ? "w-20 mx-2" : "w-1.5 mx-1"
+          )}
+          style={{
+             minWidth: isVertical ? '320px' : undefined,
+             minHeight: isVertical ? undefined : '200px'
+          }}
+        >
+          {snapshot.isDraggingOver && (
+             <span className="text-blue-500 font-medium whitespace-nowrap">
+               New Column
+             </span>
+          )}
+          {/* We don't render placeholder here effectively because we don't want the task to take space inside this zone in the traditional way during drag, 
+              but react-beautiful-dnd requires it. */}
+          <div style={{ display: "none" }}>{provided.placeholder}</div>
+        </div>
+      )}
+    </Droppable>
+  );
+}
+
+
+import React, { useState, useRef, useCallback } from "react";
+import {
+  DragDropContext,
+  Droppable,
+  DropResult,
+  DroppableProvided,
+  DragStart,
+} from "@hello-pangea/dnd";
+import { BoardState, Column } from "../types";
+import { ColumnComponent } from "./Column";
+import { ColumnDropOverlay } from "./ColumnDropOverlay";
+import { NonDynamicNewColumnDropzone } from "./NonDynamicNewColumnDropzone";
+// import { NewColumnDropzone } from "./NewColumnDropzone";
+import { cn } from "../lib/utils";
+
+const initialData: BoardState = {
+  tasks: {
+    "task-1": { id: "task-1", content: "Take out the garbage" },
+    "task-2": { id: "task-2", content: "Watch my favorite show" },
+    "task-3": { id: "task-3", content: "Charge my phone" },
+    "task-4": { id: "task-4", content: "Cook dinner" },
+    "task-5": { id: "task-5", content: "Read a book" },
+    "task-6": { id: "task-6", content: "Walk the dog" },
+    "task-7": { id: "task-7", content: "Completed Project A" },
+    "task-8": { id: "task-8", content: "Old meeting notes" },
+  },
+  columns: {
+    "column-1": {
+      id: "column-1",
+      title: "To do",
+      taskIds: ["task-1", "task-2", "task-3", "task-4"],
+    },
+    "column-2": {
+      id: "column-2",
+      title: "In progress",
+      taskIds: ["task-5", "task-6"],
+    },
+    "column-3": {
+      id: "column-3",
+      title: "Done",
+      taskIds: [],
+    },
+    "column-4": {
+      id: "column-4",
+      title: "Archive",
+      taskIds: ["task-7", "task-8"],
+      type: "no-drop",
+    },
+  },
+  columnOrder: ["column-1", "column-2", "column-3", "column-4"],
+};
+
+type BoundingRect = {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+};
+
+export function Board() {
+  const [board, setBoard] = useState<BoardState>(initialData);
+  const [orientation, setOrientation] = useState<"horizontal" | "vertical">(
+    "vertical"
+  );
+  const [isTaskDragging, setIsTaskDragging] = useState(false);
+  const [isHeightBreached, setIsHeightBreached] = useState(false);
+  const [isRightBreached, setIsRightBreached] = useState(false);
+  const [dragRect, setDragRect] = useState<BoundingRect | null>(null);
+  const [boardRect, setBoardRect] = useState<BoundingRect | null>(null);
+  const [rootRect, setRootRect] = useState<BoundingRect | null>(null);
+  const [draggingType, setDraggingType] = useState<string | null>(null);
+  const [draggingColumnId, setDraggingColumnId] = useState<string | null>(null);
+  const [hoveringOverlayId, setHoveringOverlayId] = useState<string | null>(
+    null
+  );
+
+  const boardRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const columnRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const overlayRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+
+  const handleColumnRef = useCallback(
+    (columnId: string, element: HTMLDivElement | null) => {
+      if (element) {
+        columnRefs.current.set(columnId, element);
+      } else {
+        columnRefs.current.delete(columnId);
+      }
+    },
+    []
+  );
+
+  const handleOverlayRef = useCallback(
+    (columnId: string, element: HTMLDivElement | null) => {
+      if (element) {
+        overlayRefs.current.set(columnId, element);
+      } else {
+        overlayRefs.current.delete(columnId);
+      }
+    },
+    []
+  );
+
+  const onDragStart = (start: DragStart) => {
+    setDraggingType(start.type);
+    if (start.type === "COLUMN") {
+      setDraggingColumnId(start.draggableId);
+    }
+    if (start.type === "TASK") {
+      setIsTaskDragging(true);
+    }
+  };
+
+  const onDragEnd = (result: DropResult) => {
+    setIsTaskDragging(false);
+    setIsHeightBreached(false);
+    setIsRightBreached(false);
+    setDragRect(null);
+    setBoardRect(null);
+    setRootRect(null);
+    setDraggingType(null);
+    setDraggingColumnId(null);
+    setHoveringOverlayId(null);
+    const { destination, source, draggableId, type } = result;
+
+    if (!destination) {
+      return;
+    }
+
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    // Handle dropping into a "New Column" zone
+    if (destination.droppableId.startsWith("create-column-")) {
+      const index = parseInt(
+        destination.droppableId.replace("create-column-", ""),
+        10
+      );
+
+      // 1. Create new column
+      const newColumnId = `column-${Date.now()}`;
+      const newColumn: Column = {
+        id: newColumnId,
+        title: "New Column",
+        taskIds: [draggableId],
+      };
+
+      // 2. Remove task from source column
+      const startColumn = board.columns[source.droppableId];
+      const startTaskIds = Array.from(startColumn.taskIds);
+      startTaskIds.splice(source.index, 1);
+      const newStartColumn = {
+        ...startColumn,
+        taskIds: startTaskIds,
+      };
+
+      // 3. Insert new column into columnOrder
+      const newColumnOrder = Array.from(board.columnOrder);
+      newColumnOrder.splice(index, 0, newColumnId);
+
+      const newState = {
+        ...board,
+        columns: {
+          ...board.columns,
+          [newStartColumn.id]: newStartColumn,
+          [newColumn.id]: newColumn,
+        },
+        columnOrder: newColumnOrder,
+      };
+
+      setBoard(newState);
+      return;
+    }
+
+    // Reordering columns
+    if (type === "COLUMN") {
+      const newColumnOrder = Array.from(board.columnOrder);
+      newColumnOrder.splice(source.index, 1);
+      newColumnOrder.splice(destination.index, 0, draggableId);
+
+      const newState = {
+        ...board,
+        columnOrder: newColumnOrder,
+      };
+
+      setBoard(newState);
+      return;
+    }
+
+    // Reordering tasks
+    const start = board.columns[source.droppableId];
+    const finish = board.columns[destination.droppableId];
+
+    // Moving within the same list
+    if (start === finish) {
+      const newTaskIds = Array.from(start.taskIds);
+      newTaskIds.splice(source.index, 1);
+      newTaskIds.splice(destination.index, 0, draggableId);
+
+      const newColumn = {
+        ...start,
+        taskIds: newTaskIds,
+      };
+
+      const newState = {
+        ...board,
+        columns: {
+          ...board.columns,
+          [newColumn.id]: newColumn,
+        },
+      };
+
+      setBoard(newState);
+      return;
+    }
+
+    // Moving from one list to another
+    const startTaskIds = Array.from(start.taskIds);
+    startTaskIds.splice(source.index, 1);
+    const newStart = {
+      ...start,
+      taskIds: startTaskIds,
+    };
+
+    const finishTaskIds = Array.from(finish.taskIds);
+    finishTaskIds.splice(destination.index, 0, draggableId);
+    const newFinish = {
+      ...finish,
+      taskIds: finishTaskIds,
+    };
+
+    const newState = {
+      ...board,
+      columns: {
+        ...board.columns,
+        [newStart.id]: newStart,
+        [newFinish.id]: newFinish,
+      },
+    };
+    setBoard(newState);
+  };
+
+  return (
+    <>
+      <div className="absolute top-2 right-2 z-50">
+        <button
+          onClick={() =>
+            setOrientation((prev) =>
+              prev === "horizontal" ? "vertical" : "horizontal"
+            )
+          }
+          className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition-colors"
+        >
+          Switch to {orientation === "horizontal" ? "Vertical" : "Horizontal"}
+        </button>
+      </div>
+      <div ref={rootRef} className="h-full px-10 relative max-w-lg mx-auto">
+        <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
+        <Droppable
+          droppableId="all-columns"
+          direction={orientation}
+          type="COLUMN"
+          isDropDisabled={isRightBreached}
+        >
+          {(provided: DroppableProvided) => (
+            <div
+              {...provided.droppableProps}
+              ref={(el) => {
+                provided.innerRef(el);
+                boardRef.current = el;
+              }}
+              className={cn(
+                "flex mx-auto items-start h-full border",
+                orientation === "vertical"
+                  ? "flex-col overflow-y-auto w-full"
+                  : "flex-row overflow-x-auto w-full"
+              )}
+            >
+              <NonDynamicNewColumnDropzone
+                index={0}
+                isTaskDragging={isTaskDragging}
+                orientation={orientation}
+              />
+              {board.columnOrder.map((columnId, index) => {
+                const column = board.columns[columnId];
+                const tasks = column.taskIds.map(
+                  (taskId) => board.tasks[taskId]
+                );
+
+                return (
+                  <React.Fragment key={column.id}>
+                    <ColumnComponent
+                      column={column}
+                      tasks={tasks}
+                      index={index}
+                      onColumnRef={handleColumnRef}
+                      onDragMove={(rect) => {
+                        setDragRect({
+                          top: rect.top,
+                          right: rect.right,
+                          bottom: rect.bottom,
+                          left: rect.left,
+                        });
+
+                        // Intersection check
+                        let foundHoverId: string | null = null;
+                        
+                        // Check intersection with columns
+                        for (const [
+                          colId,
+                          el,
+                        ] of columnRefs.current.entries()) {
+                          if (el && colId !== draggingColumnId) {
+                            const colRect = el.getBoundingClientRect();
+                            if (
+                              rect.left < colRect.right &&
+                              rect.right > colRect.left &&
+                              rect.top < colRect.bottom &&
+                              rect.bottom > colRect.top
+                            ) {
+                              foundHoverId = colId;
+                              break;
+                            }
+                          }
+                        }
+
+                        // Check intersection with overlays (takes precedence)
+                        for (const [colId, el] of overlayRefs.current.entries()) {
+                             if (el) {
+                                const overlayRect = el.getBoundingClientRect();
+                                if (
+                                  rect.left < overlayRect.right &&
+                                  rect.right > overlayRect.left &&
+                                  rect.top < overlayRect.bottom &&
+                                  rect.bottom > overlayRect.top
+                                ) {
+                                  foundHoverId = colId;
+                                  break;
+                                }
+                             }
+                        }
+
+                        if (foundHoverId !== hoveringOverlayId) {
+                          setHoveringOverlayId(foundHoverId);
+                        }
+
+                        if (boardRef.current) {
+                          const currentBoardRect =
+                            boardRef.current.getBoundingClientRect();
+                          setBoardRect({
+                            top: currentBoardRect.top,
+                            right: currentBoardRect.right,
+                            bottom: currentBoardRect.bottom,
+                            left: currentBoardRect.left,
+                          });
+
+                          if (orientation === "vertical") {
+                            if (rect.right > currentBoardRect.right) {
+                              if (!isHeightBreached) setIsHeightBreached(true);
+                            } else {
+                              if (isHeightBreached) setIsHeightBreached(false);
+                            }
+                          } else {
+                            if (rect.top < currentBoardRect.top) {
+                              if (!isHeightBreached) setIsHeightBreached(true);
+                            } else {
+                              if (isHeightBreached) setIsHeightBreached(false);
+                            }
+                          }
+                        }
+                        if (rootRef.current) {
+                            const currentRootRect =
+                            rootRef.current.getBoundingClientRect();
+                          setRootRect({
+                            top: currentRootRect.top,
+                            right: currentRootRect.right,
+                            bottom: currentRootRect.bottom,
+                            left: currentRootRect.left,
+                          });
+
+                          if (orientation === "vertical") {
+                            // In vertical mode, check if we've dragged past the right edge of the column list
+                            if (boardRef.current) {
+                                const currentBoardRect = boardRef.current.getBoundingClientRect();
+                                if (rect.right > currentBoardRect.right) {
+                                  if (!isRightBreached) setIsRightBreached(true);
+                                } else {
+                                  if (isRightBreached) setIsRightBreached(false);
+                                }
+                            }
+                          } else {
+                            if (rect.top < currentRootRect.top) {
+                              if (!isRightBreached) setIsRightBreached(true);
+                            } else {
+                              if (isRightBreached) setIsRightBreached(false);
+                            }
+                          }
+                        }
+                      }}
+                    />
+                    <NonDynamicNewColumnDropzone
+                      index={index + 1}
+                      isTaskDragging={isTaskDragging}
+                      orientation={orientation}
+                    />
+                  </React.Fragment>
+                );
+              })}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+        {dragRect && (
+          <div className="fixed bottom-4 left-4 flex gap-4 z-50 items-end">
+            <div className="bg-gray-800 text-white p-2 rounded text-xs opacity-90 font-mono">
+              <div className="font-bold border-b border-gray-600 mb-1">
+                Dragged
+              </div>
+              <div>
+                T: {Math.round(dragRect.top)} R: {Math.round(dragRect.right)}
+              </div>
+              <div>
+                B: {Math.round(dragRect.bottom)} L: {Math.round(dragRect.left)}
+              </div>
+            </div>
+            {boardRect && (
+              <div className="bg-blue-800 text-white p-2 rounded text-xs opacity-90 font-mono">
+                <div className="font-bold border-b border-blue-600 mb-1">
+                  Inner
+                </div>
+                <div>
+                  T: {Math.round(boardRect.top)} R:{" "}
+                  {Math.round(boardRect.right)}
+                </div>
+                <div>
+                  B: {Math.round(boardRect.bottom)} L:{" "}
+                  {Math.round(boardRect.left)}
+                </div>
+              </div>
+            )}
+            {rootRect && (
+              <div className="bg-green-800 text-white p-2 rounded text-xs opacity-90 font-mono">
+                <div className="font-bold border-b border-green-600 mb-1">
+                  Board Root
+                </div>
+                <div>
+                  TL: ({Math.round(rootRect.left)}, {Math.round(rootRect.top)})
+                </div>
+                <div>
+                  TR: ({Math.round(rootRect.right)}, {Math.round(rootRect.top)})
+                </div>
+                <div>
+                  BL: ({Math.round(rootRect.left)},{" "}
+                  {Math.round(rootRect.bottom)})
+                </div>
+                <div>
+                  BR: ({Math.round(rootRect.right)},{" "}
+                  {Math.round(rootRect.bottom)})
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="fixed bottom-4 right-4 flex flex-col gap-2 items-end z-50">
+          {isHeightBreached && (
+            <div className="bg-red-500 text-white p-4 rounded-md shadow-lg font-bold animate-bounce">
+              {orientation === "vertical"
+                ? "Right Limit Breached!"
+                : "Height Limit Breached!"}
+            </div>
+          )}
+          {isRightBreached && (
+            <div className="bg-purple-600 text-white p-4 rounded-md shadow-lg font-bold animate-pulse">
+              {orientation === "vertical"
+                ? "Board root right breached"
+                : "Board root top breached"}
+            </div>
+          )}
+        </div>
+      </DragDropContext>
+
+      {/* Floating overlays that appear when dragging a column */}
+      {draggingType === "COLUMN" &&
+        board.columnOrder
+          .filter((columnId) => columnId !== draggingColumnId)
+          .map((columnId) => {
+            const column = board.columns[columnId];
+            return (
+              <ColumnDropOverlay
+                key={`overlay-${columnId}`}
+                columnId={columnId}
+                columnTitle={column.title}
+                referenceElement={columnRefs.current.get(columnId) || null}
+                isVisible={true}
+                onOverlayRef={handleOverlayRef}
+                isHovering={hoveringOverlayId === columnId}
+                orientation={orientation}
+              />
+            );
+          })}
+      </div>
+    </>
+  );
+}
+
+
+import { useRef, useEffect } from 'react';
+import {
+  Droppable,
+  Draggable,
+  DroppableProvided,
+  DroppableStateSnapshot,
+  DraggableProvided,
+  DraggableStateSnapshot
+} from '@hello-pangea/dnd';
+import { Column, Task } from '../types';
+import { TaskComponent } from './Task';
+import { cn } from '../lib/utils';
+
+interface ColumnProps {
+  column: Column;
+  tasks: Task[];
+  index: number;
+  onDragMove?: (rect: DOMRect) => void;
+  onColumnRef?: (columnId: string, element: HTMLDivElement | null) => void;
+}
+
+export function ColumnComponent({ column, tasks, index, onDragMove, onColumnRef }: ColumnProps) {
+  const isNoDrop = column.type === 'no-drop';
+  const elementRef = useRef<HTMLDivElement>(null);
+  const onDragMoveRef = useRef(onDragMove);
+
+  onDragMoveRef.current = onDragMove;
+
+  useEffect(() => {
+    if (onColumnRef) {
+      onColumnRef(column.id, elementRef.current);
+    }
+    return () => {
+      if (onColumnRef) {
+        onColumnRef(column.id, null);
+      }
+    };
+  }, [column.id, onColumnRef]);
+
+  return (
+    <Draggable draggableId={column.id} index={index}>
+      {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => {
+        
+        useEffect(() => {
+            if (!snapshot.isDragging) return;
+
+            let animationFrameId: number;
+            
+            const updatePosition = () => {
+                if (elementRef.current && onDragMoveRef.current) {
+                    const rect = elementRef.current.getBoundingClientRect();
+                    onDragMoveRef.current(rect);
+                }
+                animationFrameId = requestAnimationFrame(updatePosition);
+            };
+
+            updatePosition();
+
+            return () => {
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            };
+        }, [snapshot.isDragging]);
+
+        return (
+        <div
+          {...provided.draggableProps}
+          ref={(el) => {
+            provided.innerRef(el);
+            elementRef.current = el;
+          }}
+          className={cn("rounded-md w-full flex flex-col max-h-full", isNoDrop ? 'bg-orange-100' : 'bg-gray-100')}
+        >
+          <div
+             {...provided.dragHandleProps}
+             className={cn("p-4 font-bold text-lg border-b border-gray-200 rounded-t-md cursor-grab active:cursor-grabbing", isNoDrop ? 'bg-orange-50' : 'bg-white')}
+          >
+            {column.title} {isNoDrop && <span className="text-xs font-normal text-orange-600 ml-2">(Locked)</span>}
+          </div>
+          
+          {isNoDrop ? (
+            <div className="p-2 min-h-[100px] flex-grow">
+               {tasks.map((task) => (
+                  <div 
+                    key={task.id}
+                    className="p-4 mb-2 bg-white/50 border border-orange-200 rounded shadow-sm text-gray-500 select-none"
+                  >
+                    {task.content}
+                  </div>
+               ))}
+            </div>
+          ) : (
+            <Droppable droppableId={column.id} type="TASK">
+              {(provided: DroppableProvided, droppableSnapshot: DroppableStateSnapshot) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className={cn("p-2 min-h-[100px] flex-grow transition-colors", droppableSnapshot.isDraggingOver && 'bg-blue-50')}
+                >
+                  {tasks.map((task, index) => (
+                    <TaskComponent key={task.id} task={task} index={index} />
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          )}
+        </div>
+      );}}
+    </Draggable>
+  );
+}
