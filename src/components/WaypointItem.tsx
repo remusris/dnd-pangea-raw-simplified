@@ -1,4 +1,4 @@
-import { Draggable, Droppable } from '@hello-pangea/dnd'
+import { Draggable } from '@hello-pangea/dnd'
 import type { FC } from 'react'
 
 export type Waypoint = {
@@ -12,13 +12,28 @@ interface WaypointItemProps {
   waypoint: Waypoint
   index: number
   isDragging: boolean
+  dropzoneMode: 'manual' | 'portal'
+  activeDropzoneId: string | null
+  onDropzoneRef?: (id: string, node: HTMLDivElement | null) => void
 }
 
 export const WaypointItem: FC<WaypointItemProps> = ({
   waypoint,
   index,
   isDragging,
+  dropzoneMode,
+  activeDropzoneId,
+  onDropzoneRef,
 }) => {
+  const dropzoneId = `dropzone-${waypoint.id}`
+  const isDropzoneActive = activeDropzoneId === dropzoneId
+  const dropzoneVisibility =
+    dropzoneMode === 'portal'
+      ? 'pointer-events-none opacity-0'
+      : isDragging
+        ? 'pointer-events-none opacity-100'
+        : 'pointer-events-none opacity-0'
+
   return (
     <Draggable draggableId={waypoint.id} index={index}>
       {(draggableProvided, draggableSnapshot) => (
@@ -49,31 +64,22 @@ export const WaypointItem: FC<WaypointItemProps> = ({
             </div>
           </div>
           {waypoint.hasDropzone ? (
-            <Droppable
-              droppableId={`dropzone-${waypoint.id}`}
-              isDropDisabled={draggableSnapshot.isDragging}
+            <div
+              id={dropzoneId}
+              ref={(node) => onDropzoneRef?.(waypoint.id, node)}
+              data-dropzone-id={dropzoneId}
+              data-dropzone-owner={waypoint.id}
+              className={`flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed px-4 py-3 text-[0.6rem] uppercase tracking-[0.35em] transition ${dropzoneVisibility} ${
+                isDropzoneActive
+                  ? 'border-cyan-300 bg-cyan-300/20 text-cyan-100 shadow-[0_0_25px_rgba(34,211,238,0.35)]'
+                  : 'border-slate-700/80 bg-slate-900/60 text-slate-500'
+              }`}
             >
-              {(dropProvided, dropSnapshot) => (
-              <div
-                id={`dropzone-${waypoint.id}`}
-                ref={dropProvided.innerRef}
-                {...dropProvided.droppableProps}
-                className={`flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed px-4 py-3 text-[0.6rem] uppercase tracking-[0.35em] transition ${
-                  isDragging ? 'opacity-100' : 'pointer-events-none opacity-0'
-                } ${
-                  dropSnapshot.isDraggingOver
-                    ? 'border-cyan-300 bg-cyan-300/20 text-cyan-100 shadow-[0_0_25px_rgba(34,211,238,0.35)]'
-                    : 'border-slate-700/80 bg-slate-900/60 text-slate-500'
-                }`}
-              >
-                  <span>Dropzone</span>
-                  <span className="text-[0.5rem] uppercase tracking-[0.25em] text-slate-400">
-                    {`dropzone-${waypoint.id}`}
-                  </span>
-                  {dropProvided.placeholder}
-                </div>
-              )}
-            </Droppable>
+              <span>Dropzone</span>
+              <span className="text-[0.5rem] uppercase tracking-[0.25em] text-slate-400">
+                {dropzoneId}
+              </span>
+            </div>
           ) : null}
         </div>
       )}
