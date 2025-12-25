@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^16.6.0",
     "@tailwindcss/vite": "^4.0.6",
     "@tanstack/react-devtools": "^0.7.0",
     "@tanstack/react-router": "^1.132.0",

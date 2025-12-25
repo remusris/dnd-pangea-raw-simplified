@@ -1,0 +1,906 @@
+# @hello-pangea/dnd
+
+## Introduction
+
+@hello-pangea/dnd is a React library for building beautiful, accessible drag and drop interfaces for lists. The library provides a high-level abstraction specifically designed for vertical lists, horizontal lists, and movement between multiple lists, with built-in support for keyboard navigation, screen readers, and touch devices. It emphasizes natural animations, performance optimization, and accessibility, making drag and drop functionality available to all users including those who cannot see or use a mouse.
+
+The library is built on three core components: DragDropContext wraps the application tree where drag and drop is enabled, Droppable defines areas that can receive dragged items, and Draggable defines items that can be dragged. It uses a render props pattern to provide maximum flexibility while maintaining clean separation between drag state management and UI rendering. The library handles complex scenarios like auto-scrolling, virtual lists, multi-drag, combining items, and dynamic list modifications during drags, all while maintaining 60fps performance.
+
+## DragDropContext Component
+
+Wraps the application tree to enable drag and drop functionality. Only one context is allowed per application tree.
+
+```javascript
+import React, { useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+
+function App() {
+  const [items, setItems] = useState([
+    { id: 'item-1', content: 'Task 1' },
+    { id: 'item-2', content: 'Task 2' },
+    { id: 'item-3', content: 'Task 3' }
+  ]);
+
+  const handleDragEnd = (result) => {
+    // Handle drag cancelled or dropped outside droppable
+    if (!result.destination) {
+      return;
+    }
+
+    // Reorder items
+    const newItems = Array.from(items);
+    const [removed] = newItems.splice(result.source.index, 1);
+    newItems.splice(result.destination.index, 0, removed);
+
+    setItems(newItems);
+  };
+
+  const handleDragStart = (start) => {
+    console.log('Drag started:', start.draggableId);
+  };
+
+  const handleDragUpdate = (update) => {
+    console.log('Drag position:', update.destination?.index);
+  };
+
+  return (
+    <DragDropContext
+      onDragEnd={handleDragEnd}
+      onDragStart={handleDragStart}
+      onDragUpdate={handleDragUpdate}
+    >
+      <Droppable droppableId="list">
+        {(provided) => (
+          <div ref={provided.innerRef} {...provided.droppableProps}>
+            {items.map((item, index) => (
+              <Draggable key={item.id} draggableId={item.id} index={index}>
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                  >
+                    {item.content}
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    </DragDropContext>
+  );
+}
+```
+
+## Droppable Component
+
+Defines a container area that can receive dragged items and contains draggable elements.
+
+```javascript
+import React, { useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+
+function MultiListApp() {
+  const [columns, setColumns] = useState({
+    'todo': ['task-1', 'task-2'],
+    'done': ['task-3']
+  });
+
+  const tasks = {
+    'task-1': 'Write documentation',
+    'task-2': 'Review code',
+    'task-3': 'Deploy to production'
+  };
+
+  const handleDragEnd = (result) => {
+    const { source, destination } = result;
+
+    if (!destination) return;
+
+    // Moving within same list
+    if (source.droppableId === destination.droppableId) {
+      const items = Array.from(columns[source.droppableId]);
+      const [removed] = items.splice(source.index, 1);
+      items.splice(destination.index, 0, removed);
+
+      setColumns({
+        ...columns,
+        [source.droppableId]: items
+      });
+    } else {
+      // Moving between lists
+      const sourceItems = Array.from(columns[source.droppableId]);
+      const destItems = Array.from(columns[destination.droppableId]);
+      const [removed] = sourceItems.splice(source.index, 1);
+      destItems.splice(destination.index, 0, removed);
+
+      setColumns({
+        ...columns,
+        [source.droppableId]: sourceItems,
+        [destination.droppableId]: destItems
+      });
+    }
+  };
+
+  return (
+    <DragDropContext onDragEnd={handleDragEnd}>
+      {Object.keys(columns).map((columnId) => (
+        <Droppable
+          key={columnId}
+          droppableId={columnId}
+          type="TASK"
+          direction="vertical"
+          isDropDisabled={false}
+        >
+          {(provided, snapshot) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              style={{
+                background: snapshot.isDraggingOver ? 'lightblue' : 'white',
+                padding: 8,
+                minHeight: 100
+              }}
+            >
+              <h3>{columnId}</h3>
+              {columns[columnId].map((taskId, index) => (
+                <Draggable key={taskId} draggableId={taskId} index={index}>
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      {...provided.dragHandleProps}
+                    >
+                      {tasks[taskId]}
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      ))}
+    </DragDropContext>
+  );
+}
+```
+
+## Draggable Component
+
+Defines an item that can be dragged and dropped within or between droppable containers.
+
+```javascript
+import React, { useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+
+function StyledDraggableList() {
+  const [items, setItems] = useState([
+    { id: '1', title: 'Item 1', description: 'First item' },
+    { id: '2', title: 'Item 2', description: 'Second item' },
+    { id: '3', title: 'Item 3', description: 'Third item' }
+  ]);
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+
+    const newItems = Array.from(items);
+    const [removed] = newItems.splice(result.source.index, 1);
+    newItems.splice(result.destination.index, 0, removed);
+    setItems(newItems);
+  };
+
+  return (
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <Droppable droppableId="styled-list">
+        {(provided) => (
+          <div ref={provided.innerRef} {...provided.droppableProps}>
+            {items.map((item, index) => (
+              <Draggable
+                key={item.id}
+                draggableId={item.id}
+                index={index}
+                isDragDisabled={false}
+              >
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    style={{
+                      userSelect: 'none',
+                      padding: 16,
+                      margin: '0 0 8px 0',
+                      background: snapshot.isDragging ? 'lightgreen' : 'white',
+                      border: '1px solid #ddd',
+                      ...provided.draggableProps.style
+                    }}
+                  >
+                    <div {...provided.dragHandleProps} style={{ cursor: 'grab' }}>
+                      ☰ {item.title}
+                    </div>
+                    <div style={{ fontSize: '0.9em', color: '#666' }}>
+                      {item.description}
+                    </div>
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    </DragDropContext>
+  );
+}
+```
+
+## Horizontal Lists
+
+Configure horizontal drag and drop layouts using the direction prop.
+
+```javascript
+import React, { useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+
+function HorizontalList() {
+  const [images, setImages] = useState([
+    { id: 'img-1', url: 'photo1.jpg', alt: 'Photo 1' },
+    { id: 'img-2', url: 'photo2.jpg', alt: 'Photo 2' },
+    { id: 'img-3', url: 'photo3.jpg', alt: 'Photo 3' },
+    { id: 'img-4', url: 'photo4.jpg', alt: 'Photo 4' }
+  ]);
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+
+    const newImages = Array.from(images);
+    const [removed] = newImages.splice(result.source.index, 1);
+    newImages.splice(result.destination.index, 0, removed);
+    setImages(newImages);
+  };
+
+  return (
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <Droppable droppableId="gallery" direction="horizontal">
+        {(provided) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              gap: 8,
+              padding: 16,
+              overflow: 'auto'
+            }}
+          >
+            {images.map((image, index) => (
+              <Draggable key={image.id} draggableId={image.id} index={index}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    style={{
+                      minWidth: 150,
+                      height: 150,
+                      border: snapshot.isDragging ? '2px solid blue' : '1px solid #ddd',
+                      ...provided.draggableProps.style
+                    }}
+                  >
+                    <img
+                      src={image.url}
+                      alt={image.alt}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    </DragDropContext>
+  );
+}
+```
+
+## Board Layout with Multiple Lists
+
+Create a board with multiple droppable columns that can be reordered.
+
+```javascript
+import React, { useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+
+function KanbanBoard() {
+  const [board, setBoard] = useState({
+    columnOrder: ['backlog', 'in-progress', 'review', 'done'],
+    columns: {
+      'backlog': { id: 'backlog', title: 'Backlog', taskIds: ['task-1', 'task-2'] },
+      'in-progress': { id: 'in-progress', title: 'In Progress', taskIds: ['task-3'] },
+      'review': { id: 'review', title: 'Review', taskIds: [] },
+      'done': { id: 'done', title: 'Done', taskIds: ['task-4'] }
+    },
+    tasks: {
+      'task-1': { id: 'task-1', content: 'Build login page' },
+      'task-2': { id: 'task-2', content: 'Create API endpoints' },
+      'task-3': { id: 'task-3', content: 'Write tests' },
+      'task-4': { id: 'task-4', content: 'Setup CI/CD' }
+    }
+  });
+
+  const handleDragEnd = (result) => {
+    const { destination, source, draggableId, type } = result;
+
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId &&
+        destination.index === source.index) return;
+
+    // Reordering columns
+    if (type === 'COLUMN') {
+      const newColumnOrder = Array.from(board.columnOrder);
+      newColumnOrder.splice(source.index, 1);
+      newColumnOrder.splice(destination.index, 0, draggableId);
+
+      setBoard({ ...board, columnOrder: newColumnOrder });
+      return;
+    }
+
+    // Moving tasks
+    const sourceColumn = board.columns[source.droppableId];
+    const destColumn = board.columns[destination.droppableId];
+
+    if (source.droppableId === destination.droppableId) {
+      // Same column
+      const newTaskIds = Array.from(sourceColumn.taskIds);
+      newTaskIds.splice(source.index, 1);
+      newTaskIds.splice(destination.index, 0, draggableId);
+
+      setBoard({
+        ...board,
+        columns: {
+          ...board.columns,
+          [sourceColumn.id]: { ...sourceColumn, taskIds: newTaskIds }
+        }
+      });
+    } else {
+      // Different columns
+      const sourceTaskIds = Array.from(sourceColumn.taskIds);
+      sourceTaskIds.splice(source.index, 1);
+      const destTaskIds = Array.from(destColumn.taskIds);
+      destTaskIds.splice(destination.index, 0, draggableId);
+
+      setBoard({
+        ...board,
+        columns: {
+          ...board.columns,
+          [sourceColumn.id]: { ...sourceColumn, taskIds: sourceTaskIds },
+          [destColumn.id]: { ...destColumn, taskIds: destTaskIds }
+        }
+      });
+    }
+  };
+
+  return (
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <Droppable droppableId="board" type="COLUMN" direction="horizontal">
+        {(provided) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            style={{ display: 'flex', gap: 8, padding: 8 }}
+          >
+            {board.columnOrder.map((columnId, index) => {
+              const column = board.columns[columnId];
+              return (
+                <Draggable key={column.id} draggableId={column.id} index={index}>
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      style={{
+                        minWidth: 250,
+                        background: '#f0f0f0',
+                        borderRadius: 4,
+                        ...provided.draggableProps.style
+                      }}
+                    >
+                      <h3 {...provided.dragHandleProps} style={{ padding: 8 }}>
+                        {column.title}
+                      </h3>
+                      <Droppable droppableId={column.id} type="TASK">
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            style={{
+                              padding: 8,
+                              minHeight: 100,
+                              background: snapshot.isDraggingOver ? '#e0e0e0' : 'transparent'
+                            }}
+                          >
+                            {column.taskIds.map((taskId, index) => {
+                              const task = board.tasks[taskId];
+                              return (
+                                <Draggable key={task.id} draggableId={task.id} index={index}>
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      style={{
+                                        padding: 8,
+                                        margin: '0 0 8px 0',
+                                        background: snapshot.isDragging ? '#fff' : '#fff',
+                                        border: '1px solid #ddd',
+                                        borderRadius: 2,
+                                        ...provided.draggableProps.style
+                                      }}
+                                    >
+                                      {task.content}
+                                    </div>
+                                  )}
+                                </Draggable>
+                              );
+                            })}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    </div>
+                  )}
+                </Draggable>
+              );
+            })}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    </DragDropContext>
+  );
+}
+```
+
+## Custom Drag Handles
+
+Separate the drag handle from the draggable item for better UX.
+
+```javascript
+import React, { useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+
+function CustomHandleList() {
+  const [items, setItems] = useState([
+    { id: '1', title: 'Document 1', canEdit: true, canDelete: false },
+    { id: '2', title: 'Document 2', canEdit: true, canDelete: true },
+    { id: '3', title: 'Document 3', canEdit: false, canDelete: false }
+  ]);
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+
+    const newItems = Array.from(items);
+    const [removed] = newItems.splice(result.source.index, 1);
+    newItems.splice(result.destination.index, 0, removed);
+    setItems(newItems);
+  };
+
+  const handleEdit = (id) => {
+    console.log('Edit item:', id);
+  };
+
+  const handleDelete = (id) => {
+    setItems(items.filter(item => item.id !== id));
+  };
+
+  return (
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <Droppable droppableId="custom-handle-list">
+        {(provided) => (
+          <div ref={provided.innerRef} {...provided.droppableProps}>
+            {items.map((item, index) => (
+              <Draggable key={item.id} draggableId={item.id} index={index}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: 12,
+                      margin: '0 0 8px 0',
+                      background: snapshot.isDragging ? '#f0f0f0' : 'white',
+                      border: '1px solid #ddd',
+                      ...provided.draggableProps.style
+                    }}
+                  >
+                    {/* Drag Handle */}
+                    <div
+                      {...provided.dragHandleProps}
+                      style={{
+                        width: 24,
+                        height: 24,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'grab',
+                        color: '#666'
+                      }}
+                    >
+                      ⋮⋮
+                    </div>
+
+                    {/* Content */}
+                    <div style={{ flex: 1 }}>
+                      {item.title}
+                    </div>
+
+                    {/* Interactive buttons - not part of drag handle */}
+                    <button
+                      onClick={() => handleEdit(item.id)}
+                      disabled={!item.canEdit}
+                      style={{ padding: '4px 8px', cursor: 'pointer' }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      disabled={!item.canDelete}
+                      style={{ padding: '4px 8px', cursor: 'pointer' }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    </DragDropContext>
+  );
+}
+```
+
+## Scrollable Lists
+
+Handle drag and drop within scrollable containers with auto-scrolling support.
+
+```javascript
+import React, { useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+
+function ScrollableList() {
+  const [items, setItems] = useState(
+    Array.from({ length: 50 }, (_, i) => ({
+      id: `item-${i}`,
+      content: `Item ${i + 1}`
+    }))
+  );
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+
+    const newItems = Array.from(items);
+    const [removed] = newItems.splice(result.source.index, 1);
+    newItems.splice(result.destination.index, 0, removed);
+    setItems(newItems);
+  };
+
+  return (
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <Droppable droppableId="scrollable-list">
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            style={{
+              maxHeight: '400px',
+              overflowY: 'auto',
+              padding: 8,
+              background: snapshot.isDraggingOver ? '#e3f2fd' : '#f5f5f5',
+              border: '1px solid #ddd',
+              position: 'relative'
+            }}
+          >
+            {items.map((item, index) => (
+              <Draggable key={item.id} draggableId={item.id} index={index}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    style={{
+                      padding: 16,
+                      margin: '0 0 8px 0',
+                      background: snapshot.isDragging ? 'white' : '#fff',
+                      border: '1px solid #ddd',
+                      boxShadow: snapshot.isDragging ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+                      ...provided.draggableProps.style
+                    }}
+                  >
+                    {item.content}
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    </DragDropContext>
+  );
+}
+```
+
+## Conditional Dragging and Dropping
+
+Control which items can be dragged and which containers can accept drops.
+
+```javascript
+import React, { useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+
+function ConditionalDragDrop() {
+  const [items, setItems] = useState([
+    { id: '1', content: 'Normal item', locked: false },
+    { id: '2', content: 'Locked item', locked: true },
+    { id: '3', content: 'Normal item', locked: false },
+    { id: '4', content: 'Locked item', locked: true }
+  ]);
+
+  const [isDropEnabled, setIsDropEnabled] = useState(true);
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+
+    const newItems = Array.from(items);
+    const [removed] = newItems.splice(result.source.index, 1);
+    newItems.splice(result.destination.index, 0, removed);
+    setItems(newItems);
+  };
+
+  return (
+    <div>
+      <label style={{ display: 'block', marginBottom: 16 }}>
+        <input
+          type="checkbox"
+          checked={isDropEnabled}
+          onChange={(e) => setIsDropEnabled(e.target.checked)}
+        />
+        {' '}Enable dropping
+      </label>
+
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="conditional-list" isDropDisabled={!isDropEnabled}>
+          {(provided, snapshot) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              style={{
+                padding: 8,
+                background: snapshot.isDraggingOver
+                  ? (isDropEnabled ? 'lightgreen' : 'lightcoral')
+                  : '#f0f0f0',
+                minHeight: 100,
+                border: '2px dashed #ccc'
+              }}
+            >
+              {items.map((item, index) => (
+                <Draggable
+                  key={item.id}
+                  draggableId={item.id}
+                  index={index}
+                  isDragDisabled={item.locked}
+                >
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      {...provided.dragHandleProps}
+                      style={{
+                        padding: 16,
+                        margin: '0 0 8px 0',
+                        background: item.locked ? '#e0e0e0' : 'white',
+                        border: snapshot.isDragging ? '2px solid blue' : '1px solid #ddd',
+                        cursor: item.locked ? 'not-allowed' : 'grab',
+                        opacity: item.locked ? 0.6 : 1,
+                        ...provided.draggableProps.style
+                      }}
+                    >
+                      {item.content} {item.locked && '🔒'}
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
+    </div>
+  );
+}
+```
+
+## TypeScript Integration
+
+Complete type-safe implementation with TypeScript.
+
+```typescript
+import React, { useState } from 'react';
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+  DraggableLocation,
+  DroppableProvided,
+  DroppableStateSnapshot,
+  DraggableProvided,
+  DraggableStateSnapshot
+} from '@hello-pangea/dnd';
+
+interface Task {
+  id: string;
+  content: string;
+  priority: 'low' | 'medium' | 'high';
+}
+
+interface Column {
+  id: string;
+  title: string;
+  taskIds: string[];
+}
+
+interface BoardState {
+  tasks: Record<string, Task>;
+  columns: Record<string, Column>;
+  columnOrder: string[];
+}
+
+function TypeScriptBoard() {
+  const [board, setBoard] = useState<BoardState>({
+    tasks: {
+      'task-1': { id: 'task-1', content: 'First task', priority: 'high' },
+      'task-2': { id: 'task-2', content: 'Second task', priority: 'medium' },
+      'task-3': { id: 'task-3', content: 'Third task', priority: 'low' }
+    },
+    columns: {
+      'col-1': { id: 'col-1', title: 'To Do', taskIds: ['task-1', 'task-2'] },
+      'col-2': { id: 'col-2', title: 'Done', taskIds: ['task-3'] }
+    },
+    columnOrder: ['col-1', 'col-2']
+  });
+
+  const handleDragEnd = (result: DropResult): void => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) {
+      return;
+    }
+
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    const sourceColumn = board.columns[source.droppableId];
+    const destColumn = board.columns[destination.droppableId];
+
+    if (sourceColumn === destColumn) {
+      const newTaskIds = Array.from(sourceColumn.taskIds);
+      newTaskIds.splice(source.index, 1);
+      newTaskIds.splice(destination.index, 0, draggableId);
+
+      const newColumn: Column = {
+        ...sourceColumn,
+        taskIds: newTaskIds
+      };
+
+      setBoard({
+        ...board,
+        columns: {
+          ...board.columns,
+          [newColumn.id]: newColumn
+        }
+      });
+    } else {
+      const sourceTaskIds = Array.from(sourceColumn.taskIds);
+      sourceTaskIds.splice(source.index, 1);
+      const newSourceColumn: Column = {
+        ...sourceColumn,
+        taskIds: sourceTaskIds
+      };
+
+      const destTaskIds = Array.from(destColumn.taskIds);
+      destTaskIds.splice(destination.index, 0, draggableId);
+      const newDestColumn: Column = {
+        ...destColumn,
+        taskIds: destTaskIds
+      };
+
+      setBoard({
+        ...board,
+        columns: {
+          ...board.columns,
+          [newSourceColumn.id]: newSourceColumn,
+          [newDestColumn.id]: newDestColumn
+        }
+      });
+    }
+  };
+
+  return (
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <div style={{ display: 'flex', gap: 16 }}>
+        {board.columnOrder.map((columnId: string) => {
+          const column = board.columns[columnId];
+          const tasks = column.taskIds.map((taskId: string) => board.tasks[taskId]);
+
+          return (
+            <div key={column.id} style={{ minWidth: 200 }}>
+              <h3>{column.title}</h3>
+              <Droppable droppableId={column.id}>
+                {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    style={{
+                      background: snapshot.isDraggingOver ? '#e0e0e0' : '#f5f5f5',
+                      padding: 8,
+                      minHeight: 100
+                    }}
+                  >
+                    {tasks.map((task: Task, index: number) => (
+                      <Draggable key={task.id} draggableId={task.id} index={index}>
+                        {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            style={{
+                              padding: 8,
+                              margin: '0 0 8px 0',
+                              background: 'white',
+                              border: `2px solid ${
+                                task.priority === 'high' ? 'red' :
+                                task.priority === 'medium' ? 'orange' : 'green'
+                              }`,
+                              ...provided.draggableProps.style
+                            }}
+                          >
+                            {task.content}
+                            <div style={{ fontSize: '0.8em', marginTop: 4 }}>
+                              Priority: {task.priority}
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          );
+        })}
+      </div>
+    </DragDropContext>
+  );
+}
+```
+
+## Summary
+
+@hello-pangea/dnd is ideal for building interactive list-based interfaces such as task boards, kanban boards, file managers, form builders, sortable galleries, and priority queues. The library excels at creating intuitive reordering experiences in productivity apps, project management tools, content management systems, and any application requiring list manipulation. Its built-in accessibility features ensure that drag and drop functionality works seamlessly for keyboard-only users and screen reader users, making it suitable for applications that must meet WCAG compliance standards.
+
+The library integrates naturally with React state management patterns including useState, useReducer, Redux, and MobX. The render props pattern provides complete control over styling and animations while the library handles complex state transitions, collision detection, and position calculations. Common integration patterns include persisting list order changes to a backend API in the onDragEnd callback, optimistic UI updates for better perceived performance, and combining with virtualization libraries like react-window for handling extremely large lists. The library's unopinionated approach to styling allows it to work with any CSS-in-JS solution, CSS modules, or traditional stylesheets, while its performance optimizations ensure smooth 60fps animations even with hundreds of items.
