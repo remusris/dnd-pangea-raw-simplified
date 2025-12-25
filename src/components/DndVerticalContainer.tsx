@@ -68,6 +68,11 @@ function DndContent({ waypoints, setWaypoints }: { waypoints: Waypoint[]; setWay
   }
 
   const handleDragEnd = (result: DropResult) => {
+    const dropzoneIdAtDrop = activeDropzoneId
+    if (dropzoneIdAtDrop) {
+      console.log(`Dropped ${result.draggableId} into ${dropzoneIdAtDrop}`)
+    }
+
     setIsDragging(false)
     setActiveDragId(null)
     setActiveDropzoneId(null)
@@ -162,4 +167,3 @@ export const DndVerticalContainer: FC<DndVerticalContainerProps> = ({
     </div>
   )
 }
-
