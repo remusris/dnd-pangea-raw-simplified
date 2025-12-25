@@ -2,12 +2,10 @@ import {
   DragDropContext,
   Droppable,
   type DragStart,
-  type DragUpdate,
   type DropResult,
 } from '@hello-pangea/dnd'
 import { createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DropzoneLayer } from '../components/DropzoneLayer'
 import { Header } from '../components/Header'
 import { WaypointItem, type Waypoint } from '../components/WaypointItem'
 
@@ -58,14 +56,10 @@ const dropzoneIdForWaypoint = (id: string) => `${dropzonePrefix}${id}`
 function App() {
   const [waypoints, setWaypoints] = useState(initialWaypoints)
   const [isDragging, setIsDragging] = useState(false)
-  const [dropzoneMode, setDropzoneMode] = useState<'manual' | 'portal'>(
-    'manual',
-  )
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
   const [activeDropzoneId, setActiveDropzoneId] = useState<string | null>(null)
   const isOverDropzone = activeDropzoneId !== null
   const dropzoneRefs = useRef(new Map<string, HTMLDivElement>())
-  const listContainerRef = useRef<HTMLDivElement | null>(null)
   const pointerPosition = useRef<{ x: number; y: number } | null>(null)
   const rafId = useRef<number | null>(null)
 
@@ -110,19 +104,6 @@ function App() {
     setActiveDropzoneId(null)
   }
 
-  const handleDragUpdate = (update: DragUpdate) => {
-    if (dropzoneMode !== 'portal') return
-    const destination = update.destination
-    if (!destination) {
-      setActiveDropzoneId(null)
-      return
-    }
-    const { droppableId } = destination
-    setActiveDropzoneId(
-      droppableId.startsWith(dropzonePrefix) ? droppableId : null,
-    )
-  }
-
   const handleDragEnd = (result: DropResult) => {
     setIsDragging(false)
     setActiveDragId(null)
@@ -139,11 +120,7 @@ function App() {
   }
 
   useEffect(() => {
-    setActiveDropzoneId(null)
-  }, [dropzoneMode])
-
-  useEffect(() => {
-    if (!isDragging || dropzoneMode !== 'manual') return
+    if (!isDragging) return
 
     const handlePointerMove = (event: PointerEvent) => {
       pointerPosition.current = { x: event.clientX, y: event.clientY }
@@ -165,7 +142,7 @@ function App() {
         rafId.current = null
       }
     }
-  }, [dropzoneMode, isDragging, updateActiveDropzoneFromPoint])
+  }, [isDragging, updateActiveDropzoneFromPoint])
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -173,53 +150,38 @@ function App() {
         <Header
           isDragging={isDragging}
           isOverDropzone={isOverDropzone}
-          dropzoneMode={dropzoneMode}
-          onDropzoneModeChange={setDropzoneMode}
         />
 
         <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 shadow-[0_35px_80px_rgba(15,23,42,0.45)]">
           <DragDropContext
             onDragStart={handleDragStart}
-            onDragUpdate={handleDragUpdate}
             onDragEnd={handleDragEnd}
           >
-            <div ref={listContainerRef} className="relative">
-              <Droppable droppableId="main">
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`space-y-4 rounded-2xl border border-dashed px-4 py-5 transition ${
-                      snapshot.isDraggingOver
-                        ? 'border-slate-500 bg-slate-900/80'
-                        : 'border-slate-700/60'
-                    }`}
-                  >
-                    {waypoints.map((waypoint, index) => (
-                      <WaypointItem
-                        key={waypoint.id}
-                        waypoint={waypoint}
-                        index={index}
-                        isDragging={isDragging}
-                        dropzoneMode={dropzoneMode}
-                        activeDropzoneId={activeDropzoneId}
-                        onDropzoneRef={setDropzoneRef}
-                      />
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-              {dropzoneMode === 'portal' ? (
-                <DropzoneLayer
-                  waypoints={waypoints}
-                  dropzoneRefs={dropzoneRefs}
-                  containerRef={listContainerRef}
-                  isDragging={isDragging}
-                  activeDragId={activeDragId}
-                />
-              ) : null}
-            </div>
+            <Droppable droppableId="main">
+              {(provided, snapshot) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className={`space-y-4 rounded-2xl border border-dashed px-4 py-5 transition ${
+                    snapshot.isDraggingOver
+                      ? 'border-slate-500 bg-slate-900/80'
+                      : 'border-slate-700/60'
+                  }`}
+                >
+                  {waypoints.map((waypoint, index) => (
+                    <WaypointItem
+                      key={waypoint.id}
+                      waypoint={waypoint}
+                      index={index}
+                      isDragging={isDragging}
+                      activeDropzoneId={activeDropzoneId}
+                      onDropzoneRef={setDropzoneRef}
+                    />
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
           </DragDropContext>
         </section>
       </div>

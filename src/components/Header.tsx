@@ -3,15 +3,11 @@ import type { FC } from 'react'
 interface HeaderProps {
   isDragging: boolean
   isOverDropzone: boolean
-  dropzoneMode: 'manual' | 'portal'
-  onDropzoneModeChange: (mode: 'manual' | 'portal') => void
 }
 
 export const Header: FC<HeaderProps> = ({
   isDragging,
   isOverDropzone,
-  dropzoneMode,
-  onDropzoneModeChange,
 }) => {
   return (
     <header className="flex flex-col gap-4">
@@ -44,33 +40,6 @@ export const Header: FC<HeaderProps> = ({
         >
           Dropzone {isOverDropzone ? 'entered' : 'idle'}
         </span>
-        <div className="flex items-center gap-2">
-          <span className="text-slate-400">Mode</span>
-          <button
-            type="button"
-            onClick={() => onDropzoneModeChange('manual')}
-            disabled={isDragging}
-            className={`rounded-full px-3 py-2 transition ${
-              dropzoneMode === 'manual'
-                ? 'bg-slate-100 text-slate-900'
-                : 'bg-slate-800 text-slate-400 hover:bg-slate-700/80 hover:text-slate-100'
-            } ${isDragging ? 'cursor-not-allowed opacity-50' : ''}`}
-          >
-            Manual
-          </button>
-          <button
-            type="button"
-            onClick={() => onDropzoneModeChange('portal')}
-            disabled={isDragging}
-            className={`rounded-full px-3 py-2 transition ${
-              dropzoneMode === 'portal'
-                ? 'bg-slate-100 text-slate-900'
-                : 'bg-slate-800 text-slate-400 hover:bg-slate-700/80 hover:text-slate-100'
-            } ${isDragging ? 'cursor-not-allowed opacity-50' : ''}`}
-          >
-            Portal
-          </button>
-        </div>
       </div>
     </header>
   )

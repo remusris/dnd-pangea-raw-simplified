@@ -12,7 +12,6 @@ interface WaypointItemProps {
   waypoint: Waypoint
   index: number
   isDragging: boolean
-  dropzoneMode: 'manual' | 'portal'
   activeDropzoneId: string | null
   onDropzoneRef?: (id: string, node: HTMLDivElement | null) => void
 }
@@ -21,18 +20,14 @@ export const WaypointItem: FC<WaypointItemProps> = ({
   waypoint,
   index,
   isDragging,
-  dropzoneMode,
   activeDropzoneId,
   onDropzoneRef,
 }) => {
   const dropzoneId = `dropzone-${waypoint.id}`
   const isDropzoneActive = activeDropzoneId === dropzoneId
-  const dropzoneVisibility =
-    dropzoneMode === 'portal'
-      ? 'pointer-events-none opacity-0'
-      : isDragging
-        ? 'pointer-events-none opacity-100'
-        : 'pointer-events-none opacity-0'
+  const dropzoneVisibility = isDragging
+    ? 'pointer-events-none opacity-100'
+    : 'pointer-events-none opacity-0'
 
   return (
     <Draggable draggableId={waypoint.id} index={index}>
